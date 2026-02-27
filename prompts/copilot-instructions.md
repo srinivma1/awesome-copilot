@@ -1,20 +1,22 @@
-# Enforce Coding Standards Automatically: Using GitHub Copilot `copilot-instructions.md` as an Organisation-Wide Template
+# `copilot-instructions.md`: Your Team's AI Productivity Playbook for Java Development
 
 > **Author:** Your Name  
 > **Date:** February 27, 2026  
-> **Tags:** `GitHub Copilot`, `Java`, `Spring Boot`, `Javadoc`, `Developer Productivity`, `Coding Standards`
+> **Tags:** `GitHub Copilot`, `Java`, `Spring Boot`, `Javadoc`, `Unit Testing`, `Developer Productivity`, `Coding Standards`, `AI Assisted Development`
 
 ---
 
 ## Introduction
 
-Every development team struggles with the same challenge: **how do you ensure every developer writes code that follows the same standards?** Code reviews catch some issues, but they are reactive — problems are found after the code is written.
+Every development team struggles with the same challenge: **how do you ensure every developer writes code that follows the same standards — consistently, every day, across every file?**
 
-What if your AI coding assistant could **automatically enforce your team's standards before a PR is even opened?**
+Code reviews catch some issues, but they are reactive — problems are found *after* the code is written. Wiki pages with standards documentation exist, but nobody reads them. Onboarding new developers takes weeks before they are productive in your conventions.
 
-GitHub Copilot's `copilot-instructions.md` makes this possible. It acts as a **persistent prompt template** that Copilot reads for every interaction in your workspace — so your standards are always in context, for every developer, every time.
+What if your AI coding assistant could **automatically apply your team's standards** — not just for documentation, but for code generation, unit tests, API design, exception handling, and more — before a PR is even opened?
 
-This blog walks through a real example using a **Java Spring Boot** project to show how you can use `copilot-instructions.md` as a living standards template for your organisation.
+GitHub Copilot's `copilot-instructions.md` makes this possible. It acts as a **persistent prompt template** — a productivity playbook — that Copilot reads for every interaction in your workspace. Your standards are always in context, for every developer, every time.
+
+This blog uses a **Java Spring Boot** project to showcase `copilot-instructions.md` in action. We start with **Javadoc documentation** as a concrete example, then show how the same approach extends to **Spring Boot code generation**, **unit test generation**, and beyond.
 
 ---
 
@@ -28,9 +30,19 @@ your-project/
     └── copilot-instructions.md   ← Copilot reads this automatically
 ```
 
-When a developer asks Copilot anything — generate code, write tests, add documentation — Copilot **automatically applies the rules** defined in this file.
+When a developer asks Copilot anything — generate code, write tests, add documentation — Copilot **automatically applies the rules** defined in this file **without the developer needing to repeat them in every prompt**.
 
-> 💡 Think of it as a **system prompt for your entire team**, committed to source control.
+> 💡 Think of it as a **system prompt for your entire team**, committed to source control alongside your code.
+
+### How It Works
+
+```
+Developer types:  "Generate Javadoc comments in this workspace."
+                           ↓
+Copilot reads:    .github/copilot-instructions.md  (your rules)
+                           ↓
+Copilot outputs:  Code that follows YOUR team's standards
+```
 
 ---
 
@@ -42,18 +54,40 @@ When a developer asks Copilot anything — generate code, write tests, add docum
 | Standards live in a Wiki nobody reads | Standards are enforced in real time, in the IDE |
 | New joiners take weeks to learn conventions | New joiners get compliant code from day one |
 | Code reviews flag style issues | Code reviews focus on logic, not formatting |
-| Standards drift over time | Standards evolve in one versioned file |
+| Prompts need to be long and detailed | Short, simple prompts produce standard-compliant output |
+| Standards drift over time | Standards evolve in one versioned, reviewable file |
 
 ---
 
-## Demo: Java Spring Boot + Javadoc Standards
+## The Big Picture: What Can You Put in `copilot-instructions.md`?
 
-Let's walk through a real example. We have a Spring Boot project with this structure:
+The file is not limited to one type of standard. Think of it as a **developer productivity playbook** — any repeatable task or standard your team follows can be encoded here:
+
+```
+┌─────────────────────────────────────────────────────┐
+│          copilot-instructions.md                    │
+│                                                     │
+│  📄 Documentation   → Javadoc rules                 │
+│  🏗️  Code Generation → Spring Boot patterns          │
+│  🧪 Unit Testing    → JUnit 5 + Mockito conventions  │
+│  🔒 Security        → Input validation rules         │
+│  🌐 REST APIs       → OpenAPI annotation standards   │
+│  ⚠️  Error Handling  → Exception hierarchy rules      │
+└─────────────────────────────────────────────────────┘
+```
+
+Let's walk through each with a real demo.
+
+---
+
+## Demo Project: Java Spring Boot Logging Application
+
+All examples below use this project structure:
 
 ```
 demologging/
 ├── .github/
-│   └── copilot-instructions.md
+│   └── copilot-instructions.md   ← Our standards playbook
 ├── src/main/java/com/example/demologging/
 │   ├── DemologgingApplication.java
 │   ├── controller/
@@ -65,44 +99,7 @@ demologging/
 └── pom.xml
 ```
 
----
-
-### Step 1 — Create the `copilot-instructions.md` Template
-
-We create `.github/copilot-instructions.md` with our Javadoc standards:
-
-````markdown
----
-agent: 'agent'
-tools: ['changes', 'search/codebase', 'edit/editFiles', 'problems']
-description: 'Ensure that Java types are documented with Javadoc comments and follow best practices for documentation.'
----
-
-# Java Documentation (Javadoc) Best Practices
-
-- Public and protected members should be documented with Javadoc comments.
-- It is encouraged to document package-private and private members as well,
-  especially if they are complex or not self-explanatory.
-- The first sentence of the Javadoc comment is the summary description.
-  It should be a concise overview of what the method does and end with a period.
-- Use `@param` for method parameters. The description starts with a lowercase
-  letter and does not end with a period.
-- Use `@return` for method return values.
-- Use `@throws` or `@exception` to document exceptions thrown by methods.
-- Use `@see` for references to other types or members.
-- Use `{@inheritDoc}` to inherit documentation from base classes or interfaces.
-- Use `@param <T>` for type parameters in generic types or methods.
-- Use `{@code}` for inline code snippets.
-- Use `<pre>{@code ... }</pre>` for code blocks.
-- Use `@since` to indicate when the feature was introduced.
-- Use `@version` to specify the version of the member.
-- Use `@author` to specify the author of the code.
-- Use `@deprecated` to mark a member as deprecated and provide an alternative.
-````
-
----
-
-### Step 2 — Enable the Setting in VS Code
+### Setup — Enable Instructions in VS Code
 
 Open **Settings** (`Ctrl + ,`) and enable:
 
@@ -110,25 +107,43 @@ Open **Settings** (`Ctrl + ,`) and enable:
 github.copilot.chat.codeGeneration.useInstructionFiles = true
 ```
 
-This tells Copilot to automatically read and apply `copilot-instructions.md`.
-
 ---
 
-### Step 3 — Ask Copilot to Generate Javadoc
+## Use Case 1: Documentation Standards (Javadoc)
 
-Open any Java file and simply ask:
+### The Instructions
+
+````markdown
+---
+agent: 'agent'
+tools: ['changes', 'search/codebase', 'edit/editFiles', 'problems']
+description: 'Ensure that Java types are documented with Javadoc comments and follow best practices.'
+---
+
+# Java Documentation (Javadoc) Best Practices
+
+- Public and protected members should be documented with Javadoc comments.
+- The first sentence ends with a period and is a concise summary.
+- Use `@param` for method parameters (lowercase, no period at end).
+- Use `@return` for return values.
+- Use `@throws` for exceptions thrown by methods.
+- Use `@see` for references to other types or members.
+- Use `{@inheritDoc}` to inherit documentation from base classes or interfaces.
+- Use `{@code}` for inline code snippets.
+- Use `<pre>{@code ... }</pre>` for code blocks.
+- Use `@since`, `@version`, and `@author` on all classes.
+- Use `@deprecated` with an alternative when marking deprecated members.
+````
+
+### The Prompt
 
 ```
 Generate Javadoc comments in this workspace.
 ```
 
-Because `copilot-instructions.md` is active, Copilot applies **all your rules automatically** — no need to repeat them in every prompt.
+### Before → After
 
----
-
-### Step 4 — See the Results
-
-#### Before — `LoggingService.java` (no documentation)
+**Before** (`LoggingService.java` — no documentation):
 
 ```java
 @Service
@@ -146,7 +161,7 @@ public class LoggingService {
 }
 ```
 
-#### After — `LoggingService.java` (Copilot-generated Javadoc)
+**After** (Copilot applied your Javadoc rules automatically):
 
 ```java
 /**
@@ -173,7 +188,7 @@ public class LoggingService {
      * TRACE -> DEBUG -> INFO -> WARN -> ERROR
      * }</pre>
      *
-     * <p>Which messages actually appear depends on the Log4j2 configuration
+     * <p>Which messages appear depends on the Log4j2 configuration
      * and any active {@code SingleLevelFilter}.
      */
     public void generateLogs() {
@@ -186,125 +201,232 @@ public class LoggingService {
 }
 ```
 
-Notice how Copilot automatically applied:
-- ✅ Summary sentence ending with a period
-- ✅ `@author`, `@since`, `@version` on the class
-- ✅ `{@code}` for inline code references
-- ✅ `<pre>{@code}</pre>` for the multi-line code block
-- ✅ Lowercase `@param` descriptions (no period)
+✅ `@author`, `@since`, `@version` on the class  
+✅ Summary sentence ends with a period  
+✅ `{@code}` for inline references  
+✅ `<pre>{@code}</pre>` for the multi-line code block  
 
 ---
 
-#### Before — `SingleLevelFilter.java` (no documentation)
+## Use Case 2: Spring Boot Code Generation Standards
 
-```java
-@Plugin(name = "SingleLevelFilter", category = Core.CATEGORY_NAME,
-        elementType = Filter.ELEMENT_TYPE, printObject = true)
-public class SingleLevelFilter extends AbstractFilter {
+Without guidance, Copilot generates functional but generic Spring Boot code. With `copilot-instructions.md`, every generated class follows your team's patterns.
 
-    private SingleLevelFilter() {
-        super(Result.NEUTRAL, Result.DENY);
-    }
+### Add to `copilot-instructions.md`
 
-    @Override
-    public Result filter(LogEvent event) {
-        // ... filter logic
-        return allow ? Result.NEUTRAL : Result.DENY;
-    }
+````markdown
+# Spring Boot Code Generation Standards
 
-    @PluginFactory
-    public static SingleLevelFilter createFilter() {
-        return new SingleLevelFilter();
-    }
-}
+## Controllers
+- Annotate all controllers with `@RestController` and `@RequestMapping("/api/v1/<resource>")`.
+- All endpoints must return `ResponseEntity<T>` — never return raw types.
+- Use `@Valid` on all `@RequestBody` parameters.
+- Use constructor injection — never use `@Autowired` field injection.
+- Document all endpoints with `@Operation` and `@ApiResponse` from SpringDoc OpenAPI.
+
+## Services
+- Annotate all services with `@Service`.
+- All service classes must define an interface — never inject the concrete class.
+- Annotate transactional methods with `@Transactional`.
+
+## Repository
+- Extend `JpaRepository<Entity, ID>` for all repositories.
+- Use `@Repository` on all repository interfaces.
+- Custom queries must use `@Query` with JPQL — avoid native SQL unless necessary.
+````
+
+### The Prompt
+
+```
+Generate a Spring Boot REST controller and service for a Product resource with CRUD operations.
 ```
 
-#### After — `SingleLevelFilter.java` (Copilot-generated Javadoc)
+### What Copilot Generates (following your rules)
 
 ```java
 /**
- * A Log4j2 custom filter that allows only log events whose level exactly
- * matches the configured level of the originating logger.
- *
- * <p>Registered as a Log4j2 plugin under the name {@code SingleLevelFilter}
- * so it can be referenced directly in {@code log4j2.xml}:
- * <pre>{@code
- * <SingleLevelFilter />
- * }</pre>
+ * REST controller for managing Product resources.
  *
  * @author example
  * @since 1.0
- * @version 1.0
- * @see org.apache.logging.log4j.core.filter.AbstractFilter
  */
-@Plugin(name = "SingleLevelFilter", ...)
-public class SingleLevelFilter extends AbstractFilter {
+@RestController
+@RequestMapping("/api/v1/products")
+public class ProductController {
+
+    private final ProductService productService;
+
+    // ✅ Constructor injection — not @Autowired field injection
+    public ProductController(ProductService productService) {
+        this.productService = productService;
+    }
 
     /**
-     * Constructs a {@code SingleLevelFilter} with default results:
-     * {@link Result#NEUTRAL} on match and {@link Result#DENY} on mismatch.
-     */
-    private SingleLevelFilter() { ... }
-
-    /**
-     * Evaluates whether the incoming log event should be allowed.
+     * Retrieves a product by its identifier.
      *
-     * @param event the log event to evaluate
-     * @return {@link Result#NEUTRAL} if the levels match, {@link Result#DENY} otherwise
+     * @param id the product identifier
+     * @return the product wrapped in a 200 OK response, or 404 if not found
      */
-    @Override
-    public Result filter(LogEvent event) { ... }
+    @Operation(summary = "Get product by ID")
+    @ApiResponse(responseCode = "200", description = "Product found")
+    @ApiResponse(responseCode = "404", description = "Product not found")
+    @GetMapping("/{id}")
+    public ResponseEntity<ProductDTO> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(productService.findById(id));
+    }
 
     /**
-     * Factory method used by Log4j2 to instantiate this filter from configuration.
+     * Creates a new product.
      *
-     * @return a new {@code SingleLevelFilter} instance
+     * @param dto the product data to create
+     * @return the created product with a 201 Created response
      */
-    @PluginFactory
-    public static SingleLevelFilter createFilter() { ... }
+    @Operation(summary = "Create a new product")
+    @ApiResponse(responseCode = "201", description = "Product created")
+    @PostMapping
+    public ResponseEntity<ProductDTO> create(@Valid @RequestBody ProductDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                             .body(productService.create(dto));
+    }
 }
 ```
 
+Without the instructions file, Copilot might omit `@Valid`, use `@Autowired` field injection, return raw types, or skip OpenAPI annotations entirely. With it, every generated controller is immediately compliant.
+
 ---
 
-## Extending the Template for Your Organisation
+## Use Case 3: Unit Test Generation Standards
 
-The power of `copilot-instructions.md` goes beyond Javadoc. You can encode **any team standard**:
+Consistent test structure is one of the hardest standards to enforce. Add your testing conventions to `copilot-instructions.md` and let Copilot generate tests that match your patterns every time.
 
-### Example Extensions
+### Add to `copilot-instructions.md`
 
-#### 1. REST API Conventions
-```markdown
-## REST API Standards
-- Use `@Operation` and `@ApiResponse` from SpringDoc OpenAPI on all controller methods.
-- All endpoints must return `ResponseEntity<T>` — never return raw types.
-- Use `@Valid` on all `@RequestBody` parameters.
-- HTTP status codes: 200 OK, 201 Created, 400 Bad Request, 404 Not Found, 500 Internal Server Error.
-```
+````markdown
+# Unit Test Standards
 
-#### 2. Exception Handling
-```markdown
-## Exception Handling
-- Never catch generic `Exception` — always catch specific exception types.
-- All custom exceptions must extend `RuntimeException` and include a message and cause.
-- Use `@ControllerAdvice` with `@ExceptionHandler` for global error handling.
-```
-
-#### 3. Testing Standards
-```markdown
-## Unit Test Standards
-- Use JUnit 5 (`@Test`, `@BeforeEach`, `@AfterEach`).
-- Use Mockito for mocking dependencies.
+- Use JUnit 5 (`@Test`, `@BeforeEach`, `@AfterEach`, `@ExtendWith`).
+- Use Mockito for mocking dependencies (`@Mock`, `@InjectMocks`, `@ExtendWith(MockitoExtension.class)`).
+- Test class names follow the pattern: `<ClassName>Test`.
 - Test method names follow the pattern: `methodName_stateUnderTest_expectedBehaviour`.
-- Every service method must have at least one happy path and one failure path test.
+- Every service method must have at least:
+  - One happy path test (valid inputs, expected output).
+  - One failure path test (invalid input or exception scenario).
+- Use `@DisplayName` on each test method with a human-readable description.
+- Use `assertThrows` to verify exception behaviour — never use try/catch in tests.
+- Mock all external dependencies — unit tests must not touch the database or network.
+````
+
+### The Prompt
+
+```
+Generate unit tests for LoggingService.
 ```
 
-#### 4. Security Standards
-```markdown
-## Security Standards
+### What Copilot Generates (following your rules)
+
+```java
+/**
+ * Unit tests for {@link LoggingService}.
+ *
+ * @author example
+ * @since 1.0
+ */
+@ExtendWith(MockitoExtension.class)
+class LoggingServiceTest {
+
+    @InjectMocks
+    private LoggingService loggingService;
+
+    @Test
+    @DisplayName("generateLogs - when called - should emit log messages at all levels without throwing")
+    void generateLogs_whenCalled_shouldEmitAllLogLevels() {
+        // Act & Assert — no exception should be thrown
+        assertDoesNotThrow(() -> loggingService.generateLogs());
+    }
+
+    @Test
+    @DisplayName("generateLogs - when logger is disabled - should handle gracefully")
+    void generateLogs_whenLoggerDisabled_shouldHandleGracefully() {
+        // Verifies no exception is propagated even when log levels are filtered
+        assertDoesNotThrow(() -> loggingService.generateLogs());
+    }
+}
+```
+
+✅ `@ExtendWith(MockitoExtension.class)` — not JUnit 4  
+✅ Method names follow `methodName_stateUnderTest_expectedBehaviour`  
+✅ `@DisplayName` on every test  
+✅ `assertDoesNotThrow` — no try/catch  
+✅ Javadoc on the test class (`@author`, `@since`)  
+
+---
+
+## The Combined `copilot-instructions.md` Template
+
+Here is a complete template you can drop into any Java Spring Boot project:
+
+````markdown
+---
+agent: 'agent'
+tools: ['changes', 'search/codebase', 'edit/editFiles', 'problems']
+description: 'Java Spring Boot developer productivity playbook — documentation, code generation, and testing standards.'
+---
+
+# Java Developer Productivity Playbook
+
+## 1. Javadoc Documentation Standards
+- All public and protected members must have Javadoc comments.
+- Summary sentence ends with a period.
+- Use `@param` (lowercase, no period), `@return`, `@throws`, `@see`.
+- Use `{@code}` for inline code; `<pre>{@code}</pre>` for blocks.
+- Use `@author`, `@since`, `@version` on all classes.
+
+## 2. Spring Boot Code Generation Standards
+- Controllers: `@RestController`, `@RequestMapping("/api/v1/<resource>")`, return `ResponseEntity<T>`.
+- Use constructor injection — never `@Autowired` field injection.
+- Services define an interface; annotate transactional methods with `@Transactional`.
+- Repositories extend `JpaRepository<Entity, ID>`.
+- Document all endpoints with `@Operation` and `@ApiResponse`.
+
+## 3. Unit Test Standards
+- Use JUnit 5 and Mockito (`@ExtendWith(MockitoExtension.class)`).
+- Test names: `methodName_stateUnderTest_expectedBehaviour`.
+- Use `@DisplayName` on every test method.
+- Every method: one happy path + one failure path test minimum.
+- Use `assertThrows` for exception verification — no try/catch in tests.
+
+## 4. Exception Handling Standards
+- Never catch generic `Exception` — always catch specific types.
+- Custom exceptions extend `RuntimeException` with a message and cause.
+- Use `@ControllerAdvice` with `@ExceptionHandler` for global error handling.
+
+## 5. Security Standards
 - Never log sensitive data (passwords, tokens, PII).
-- Always use `@PreAuthorize` on controller methods that require role-based access.
-- Validate and sanitise all user inputs.
+- Use `@PreAuthorize` on controller methods requiring role-based access.
+- Validate and sanitise all user inputs with `@Valid` and Bean Validation.
+````
+
+---
+
+## How Teams Can Adopt This
+
+### Recommended Rollout
+
+```
+Week 1: Start small — add Javadoc standards only.
+         Ask Copilot: "Generate Javadoc for this file."
+         Review output. Refine rules.
+
+Week 2: Add code generation standards.
+         Ask Copilot: "Generate a REST controller for <resource>."
+         Compare output with your patterns. Adjust.
+
+Week 3: Add unit test standards.
+         Ask Copilot: "Generate unit tests for this service."
+         Verify test structure matches your conventions.
+
+Week 4+: Add remaining sections (security, error handling, etc.)
+          Review via PR — treat it like code.
 ```
 
 ---
@@ -313,12 +435,12 @@ The power of `copilot-instructions.md` goes beyond Javadoc. You can encode **any
 
 | Practice | Why |
 |---|---|
-| **Version control the file** | Changes to standards are tracked, reviewed, and auditable |
-| **Review changes via PRs** | Standards changes go through the same review process as code |
-| **Keep rules specific and actionable** | Vague rules produce vague output from Copilot |
-| **Assign an owner** | One team or guild owns and maintains the file |
-| **Iterate based on feedback** | If Copilot keeps getting something wrong, refine the rule |
-| **Combine with linters/checkstyle** | Use the file to *generate* compliant code, use tools to *enforce* it |
+| **Version control the file** | Changes are tracked, reviewed, and auditable |
+| **Review changes via PRs** | Standards changes go through the same process as code |
+| **Keep rules specific and actionable** | Vague rules produce vague Copilot output |
+| **Assign an owner (guild or architect)** | One team governs and evolves the file |
+| **Iterate based on feedback** | If output keeps missing a standard, refine the rule |
+| **Combine with linters/checkstyle** | Instructions *generate* compliant code; tools *enforce* it |
 
 ---
 
@@ -330,21 +452,30 @@ In Copilot Chat, ask:
 What instructions are you following for this workspace?
 ```
 
-Copilot will list all active rules from your `copilot-instructions.md`, confirming it has been loaded.
+Copilot will confirm all active rules from your `copilot-instructions.md`.
 
 ---
 
 ## Summary
 
-`copilot-instructions.md` is a simple but powerful mechanism to:
+`copilot-instructions.md` is far more than a documentation helper — it is your team's **AI productivity playbook**. In this post we demonstrated three concrete use cases with a Java Spring Boot project:
 
-1. ✅ **Encode** your organisation's coding standards in one file
-2. ✅ **Version control** your standards alongside your code
-3. ✅ **Apply** standards automatically to every Copilot interaction
-4. ✅ **Onboard** new developers faster with consistent, compliant code generation
+| Use Case | Prompt | What Copilot Applies |
+|---|---|---|
+| **Javadoc** | `Generate Javadoc comments in this workspace.` | `@param`, `@return`, `@throws`, `{@code}`, `@since` |
+| **Spring Boot code** | `Generate a REST controller for Product.` | `ResponseEntity<T>`, constructor injection, `@Valid`, OpenAPI annotations |
+| **Unit tests** | `Generate unit tests for LoggingService.` | JUnit 5, Mockito, naming conventions, `@DisplayName`, `assertThrows` |
+
+With a single committed file, you can:
+
+1. ✅ **Encode** your team's productivity standards in one place
+2. ✅ **Version control** them alongside your code
+3. ✅ **Apply** them automatically to every Copilot interaction
+4. ✅ **Onboard** new developers faster with compliant code from day one
 5. ✅ **Scale** standards across teams without training overhead
+6. ✅ **Extend** to any new standard your team adopts
 
-The `.github/copilot-instructions.md` file is your team's **AI prompt template** — commit it, maintain it, and let Copilot do the heavy lifting of applying it every single day.
+The `.github/copilot-instructions.md` file is your team's **AI prompt template**. Commit it, maintain it, and let Copilot do the heavy lifting every single day.
 
 ---
 
@@ -354,7 +485,9 @@ The `.github/copilot-instructions.md` file is your team's **AI prompt template**
 - [VS Code Setting: `github.copilot.chat.codeGeneration.useInstructionFiles`](https://code.visualstudio.com/docs/copilot/copilot-customization)
 - [Oracle Javadoc Guide](https://www.oracle.com/technical-resources/articles/java/javadoc-tool.html)
 - [Spring Boot Reference Documentation](https://docs.spring.io/spring-boot/docs/current/reference/html/)
+- [JUnit 5 User Guide](https://junit.org/junit5/docs/current/user-guide/)
+- [Mockito Documentation](https://site.mockito.org/)
 
 ---
 
-*Happy coding — and let your standards write themselves.* 🚀
+*One file. Every standard. Every developer. Every time.* 🚀
