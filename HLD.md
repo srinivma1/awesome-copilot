@@ -1,14 +1,14 @@
-# Integration Service
+# Application Integration Service
 
 ## 1. Document Overview
 
 ### Purpose
-Integration Service provides a unified API layer for claim orchestration, partner interaction, and event propagation across the target workflow.
+Application Integration Service provides a unified API layer for application orchestration, partner interaction, and event propagation across the target workflow.
 
 ### Scope
 #### In Scope
-- Claim submission and lookup APIs
-- Claim validation and status retrieval
+- Application submission and lookup APIs
+- Application validation and status retrieval
 - Event publication to downstream systems
 - Integration with external partner systems
 
@@ -21,30 +21,30 @@ Integration Service provides a unified API layer for claim orchestration, partne
 ## 2. Business Context
 
 ### Problem Statement
-The target business workflow spans multiple internal systems and external partners, which creates fragmented visibility and delayed updates. Integration Service addresses this by consolidating claim operations, validating the workflow, and publishing status events to downstream consumers.
+The target business workflow spans multiple internal systems and external partners, which creates fragmented visibility and delayed updates. Application Integration Service addresses this by consolidating application operations, validating the workflow, and publishing status events to downstream consumers.
 
 ### Business Capabilities Supported
 | Capability | Description |
 | --- | --- |
-| Claim Lookup | Retrieve current state and metadata for the target business record |
-| Claim Submission | Submit and validate the target workflow request |
+| Application Lookup | Retrieve current state and metadata for the target business record |
+| Application Submission | Submit and validate the target workflow request |
 | State Tracking | Query lifecycle or processing status |
 | Partner Event Integration | Publish and consume callbacks and partner events |
 
 ## 3. Service Overview
 
 ### Service Responsibilities
-- Create claim
-- Retrieve claim details
-- Validate claim state transitions
+- Create application
+- Retrieve application details
+- Validate application state transitions
 - Publish business events
 - Consume partner callbacks
 - Enforce workflow validation rules
 
 ### Service Boundaries
 #### Owned by Service
-- Claim lifecycle data
-- Claim APIs
+- Application lifecycle data
+- Application APIs
 - Business validation rules
 - Event contracts
 
@@ -56,14 +56,14 @@ The target business workflow spans multiple internal systems and external partne
 
 ## 4. Functional Architecture
 
-This Complex integration (score 7) coordinates claim status, fraud checks, payments, documents, and partner notifications across three external systems using six Kafka topics: claim-status-updates, claim-status-partner-notifications, fraud-check-requests, fraud-check-callbacks, payment-status-updates, and document-status-updates. It exposes no APIs and requires OAuth security, with no transformation complexity; the estimated effort is 6-9 PM because Kafka, OAuth, and three-system integration require coordinated delivery. EDA style: pub_sub. Test scope: Cover Kafka producer/consumer contracts, OAuth, all three external integrations, failure handling, and end-to-end pub/sub flows..
+This Complex integration (score 11) spans 12 application-focused APIs, 3 Kafka topics, and 5 external systems, using OAuth security and moderate transformation complexity to support application creation and updates, submission, document handling, status and assessment retrieval, decisions, and status updates. The estimated effort is 14-18 PM, reflecting the broad integration surface and several complex APIs, with Kafka supporting application status, fraud-check completion, and notification-delivery event flows. EDA style: pub_sub. Test scope: Cover API contracts, OAuth, transformations, Kafka flows, external-system integration, failure handling, and end-to-end regression..
 
 ```mermaid
 flowchart LR
     Client([Consumer Apps]) --> GW[API Gateway]
-    GW --> S[Integration Service]
+    GW --> S[Application Integration Service]
     S --> V[Business Validation / Rules]
-    V --> DB[(Claim data store)]
+    V --> DB[(Application data store)]
     V --> K[Kafka Event Stream]
     K --> D[Partner & Downstream Systems]
 ```
@@ -73,42 +73,42 @@ flowchart LR
 ### API Catalogue
 | API | Method | Purpose |
 | --- | --- | --- |
-| POST /claims | POST | Submit a new claim for adjudication |
-| GET /claims/{id} | GET | Retrieve claim details |
-| PUT /claims/{id} | PUT | Update claim information |
-| GET /policies/{policyId} | GET | Look up policy details for a claim |
-| POST /claims/{id}/submit | POST | Submit claim for adjudication |
-| GET /claims/{id}/status | GET | Fetch current claim status |
-| POST /claims/{id}/fraud-check | POST | Trigger fraud check callback flow |
-| GET /claims/{id}/documents | GET | Fetch claim-related documents |
-| POST /claims/{id}/documents | POST | Attach supporting documentary evidence |
-| GET /partners/{partnerId}/status | GET | View partner integration status |
-| POST /partners/{partnerId}/callbacks | POST | Accept partner event callback payloads |
-| PATCH /claims/{id}/status | PATCH | Apply updated claim processing status |
+| POST /applications | POST | Starts a loan application and persists applicant/loan data, supporting the requirement that an applicant can "start, save, and resume a loan application"; integrates with the Core Banking Platform, where applicant and loan data currently lives. |
+| PUT /applications/{applicationId} | PUT | Saves updates to an in-progress loan application so an applicant can save and later resume it; integrates with the Core Banking Platform. |
+| GET /applications/{applicationId} | GET | Retrieves a saved loan application so the applicant can resume it, directly supporting the "start, save, and resume" requirement; reads applicant/loan data associated with the Core Banking Platform. |
+| POST /applications/{applicationId}/submit | POST | Submits a completed application and initiates the underwriting flow described by "automatically pulls a credit report once an application is submitted" and fraud screening "before it reaches underwriting"; coordinates with the Credit Bureau Service and the event-driven fraud flow using Fraud Detection Service. |
+| POST /applications/{applicationId}/documents | POST | Uploads pay stubs, ID, proof of address, or other supporting documents as required by the applicant portal; storage is expected to involve the Document Management System if the existing DMS option is selected. |
+| GET /applications/{applicationId}/documents/{documentId} | GET | Retrieves an application document, consistent with the Document Management System integration whose stated purpose is to "store and retrieve signed loan agreements and disclosures." |
+| GET /applications/{applicationId}/status | GET | Returns the application's current submitted, under-review, approved, declined, or funded status so applicants can "view real-time application status without calling support"; status changes also feed the application-status-changed Kafka flow. |
+| GET /applications/{applicationId}/credit-result | GET | Retrieves the credit report and score needed for the underwriter dashboard after the system automatically pulls credit at submission; integrates with the Credit Bureau Service. |
+| GET /applications/{applicationId}/fraud-result | GET | Retrieves the fraud-risk result required for the underwriter's side-by-side credit/fraud view; the result originates from the Fraud Detection Service and the fraud-check-completed Kafka flow. |
+| GET /applications/{applicationId}/underwriting | GET | Provides the consolidated underwriting view required by "Underwriter can see credit and fraud results side by side before approving or declining," combining Credit Bureau Service and Fraud Detection Service results. |
+| POST /applications/{applicationId}/decision | POST | Records the underwriter's approve or decline decision, matching the integration overview's explicit reference to "underwriter decisioning" and the requirement to approve or decline after reviewing credit and fraud results; approved processing can involve Core Banking Platform loan account creation. |
+| POST /applications/{applicationId}/status | POST | Applies lifecycle status changes such as submitted, under review, approved, declined, or funded and initiates the automatic communications required on "every status change" through application-status-changed and notification-delivery-requested Kafka events to the SMS / Email Gateway. |
 
-### API 1: POST /claims
+### API 1: POST /applications
 
 **Endpoint**
-POST /claims
+POST /applications
 
 **Request**
 ```json
 {
-  "claimId": "CLM-1001",
-  "claimReference": "REF-1001"
+  "applicationId": "CLM-1001",
+  "applicationReference": "REF-1001"
 }
 ```
 
 **Response**
 ```json
 {
-  "claimId": "CLM-1001",
+  "applicationId": "CLM-1001",
   "status": "submitted"
 }
 ```
 
 **Purpose**
-Submit a new claim for adjudication
+Starts a loan application and persists applicant/loan data, supporting the requirement that an applicant can "start, save, and resume a loan application"; integrates with the Core Banking Platform, where applicant and loan data currently lives.
 
 **Validations**
 - The primary business identifier is required for all create/update operations
@@ -123,103 +123,29 @@ Submit a new claim for adjudication
 - 409 Conflict
 - 500 Internal Server Error
 
-### API 2: GET /claims/{id}
+### API 2: PUT /applications/{applicationId}
 
 **Endpoint**
-GET /claims/{id}
+PUT /applications/{applicationId}
 
 **Request**
 ```json
 {
-  "claimId": "CLM-1001",
-  "claimReference": "REF-1001"
+  "applicationId": "CLM-1001",
+  "applicationReference": "REF-1001"
 }
 ```
 
 **Response**
 ```json
 {
-  "claimId": "CLM-1001",
-  "claimReference": "REF-1001"
-}
-```
-
-**Purpose**
-Retrieve claim details
-
-**Validations**
-- The primary business identifier is required for all create/update operations
-- Reference fields must map to valid external or internal system keys
-- Status transitions must follow the target business workflow
-- Search filters must not exceed the allowed maximum length
-
-**Error Codes**
-- 400 Bad Request
-- 401 Unauthorized
-- 404 Not Found
-- 409 Conflict
-- 500 Internal Server Error
-
-### API 3: PUT /claims/{id}
-
-**Endpoint**
-PUT /claims/{id}
-
-**Request**
-```json
-{
-  "claimId": "CLM-1001",
-  "claimReference": "REF-1001"
-}
-```
-
-**Response**
-```json
-{
-  "claimId": "CLM-1001",
-  "claimReference": "REF-1001"
-}
-```
-
-**Purpose**
-Update claim information
-
-**Validations**
-- The primary business identifier is required for all create/update operations
-- Reference fields must map to valid external or internal system keys
-- Status transitions must follow the target business workflow
-- Search filters must not exceed the allowed maximum length
-
-**Error Codes**
-- 400 Bad Request
-- 401 Unauthorized
-- 404 Not Found
-- 409 Conflict
-- 500 Internal Server Error
-
-### API 4: GET /policies/{policyId}
-
-**Endpoint**
-GET /policies/{policyId}
-
-**Request**
-```json
-{
-  "claimId": "CLM-1001",
-  "claimReference": "REF-1001"
-}
-```
-
-**Response**
-```json
-{
-  "claimId": "CLM-1001",
+  "applicationId": "CLM-1001",
   "status": "submitted"
 }
 ```
 
 **Purpose**
-Look up policy details for a claim
+Saves updates to an in-progress loan application so an applicant can save and later resume it; integrates with the Core Banking Platform.
 
 **Validations**
 - The primary business identifier is required for all create/update operations
@@ -234,29 +160,29 @@ Look up policy details for a claim
 - 409 Conflict
 - 500 Internal Server Error
 
-### API 5: POST /claims/{id}/submit
+### API 3: GET /applications/{applicationId}
 
 **Endpoint**
-POST /claims/{id}/submit
+GET /applications/{applicationId}
 
 **Request**
 ```json
 {
-  "claimId": "CLM-1001",
-  "claimReference": "REF-1001"
+  "applicationId": "CLM-1001",
+  "applicationReference": "REF-1001"
 }
 ```
 
 **Response**
 ```json
 {
-  "claimId": "CLM-1001",
-  "claimReference": "REF-1001"
+  "applicationId": "CLM-1001",
+  "status": "submitted"
 }
 ```
 
 **Purpose**
-Submit claim for adjudication
+Retrieves a saved loan application so the applicant can resume it, directly supporting the "start, save, and resume" requirement; reads applicant/loan data associated with the Core Banking Platform.
 
 **Validations**
 - The primary business identifier is required for all create/update operations
@@ -271,16 +197,127 @@ Submit claim for adjudication
 - 409 Conflict
 - 500 Internal Server Error
 
-### API 6: GET /claims/{id}/status
+### API 4: POST /applications/{applicationId}/submit
 
 **Endpoint**
-GET /claims/{id}/status
+POST /applications/{applicationId}/submit
 
 **Request**
 ```json
 {
-  "claimId": "CLM-1001",
-  "claimReference": "REF-1001",
+  "applicationId": "CLM-1001",
+  "applicationReference": "REF-1001"
+}
+```
+
+**Response**
+```json
+{
+  "applicationId": "CLM-1001",
+  "status": "submitted"
+}
+```
+
+**Purpose**
+Submits a completed application and initiates the underwriting flow described by "automatically pulls a credit report once an application is submitted" and fraud screening "before it reaches underwriting"; coordinates with the Credit Bureau Service and the event-driven fraud flow using Fraud Detection Service.
+
+**Validations**
+- The primary business identifier is required for all create/update operations
+- Reference fields must map to valid external or internal system keys
+- Status transitions must follow the target business workflow
+- Search filters must not exceed the allowed maximum length
+
+**Error Codes**
+- 400 Bad Request
+- 401 Unauthorized
+- 404 Not Found
+- 409 Conflict
+- 500 Internal Server Error
+
+### API 5: POST /applications/{applicationId}/documents
+
+**Endpoint**
+POST /applications/{applicationId}/documents
+
+**Request**
+```json
+{
+  "applicationId": "CLM-1001",
+  "applicationReference": "REF-1001"
+}
+```
+
+**Response**
+```json
+{
+  "applicationId": "CLM-1001",
+  "status": "submitted"
+}
+```
+
+**Purpose**
+Uploads pay stubs, ID, proof of address, or other supporting documents as required by the applicant portal; storage is expected to involve the Document Management System if the existing DMS option is selected.
+
+**Validations**
+- The primary business identifier is required for all create/update operations
+- Reference fields must map to valid external or internal system keys
+- Status transitions must follow the target business workflow
+- Search filters must not exceed the allowed maximum length
+
+**Error Codes**
+- 400 Bad Request
+- 401 Unauthorized
+- 404 Not Found
+- 409 Conflict
+- 500 Internal Server Error
+
+### API 6: GET /applications/{applicationId}/documents/{documentId}
+
+**Endpoint**
+GET /applications/{applicationId}/documents/{documentId}
+
+**Request**
+```json
+{
+  "applicationId": "CLM-1001",
+  "applicationReference": "REF-1001"
+}
+```
+
+**Response**
+```json
+{
+  "applicationId": "CLM-1001",
+  "status": "submitted"
+}
+```
+
+**Purpose**
+Retrieves an application document, consistent with the Document Management System integration whose stated purpose is to "store and retrieve signed loan agreements and disclosures."
+
+**Validations**
+- The primary business identifier is required for all create/update operations
+- Reference fields must map to valid external or internal system keys
+- Status transitions must follow the target business workflow
+- Search filters must not exceed the allowed maximum length
+
+**Error Codes**
+- 400 Bad Request
+- 401 Unauthorized
+- 404 Not Found
+- 409 Conflict
+- 500 Internal Server Error
+
+### API 7: GET /applications/{applicationId}/status
+
+**Endpoint**
+GET /applications/{applicationId}/status
+
+**Request**
+```json
+{
+  "applicationId": "CLM-1001",
+  "applicationReference": "REF-1001",
   "includeHistory": true
 }
 ```
@@ -288,13 +325,13 @@ GET /claims/{id}/status
 **Response**
 ```json
 {
-  "claimId": "CLM-1001",
+  "applicationId": "CLM-1001",
   "status": "in_review"
 }
 ```
 
 **Purpose**
-Fetch current claim status
+Returns the application's current submitted, under-review, approved, declined, or funded status so applicants can "view real-time application status without calling support"; status changes also feed the application-status-changed Kafka flow.
 
 **Validations**
 - The primary business identifier is required for all create/update operations
@@ -309,178 +346,29 @@ Fetch current claim status
 - 409 Conflict
 - 500 Internal Server Error
 
-### API 7: POST /claims/{id}/fraud-check
+### API 8: GET /applications/{applicationId}/credit-result
 
 **Endpoint**
-POST /claims/{id}/fraud-check
+GET /applications/{applicationId}/credit-result
 
 **Request**
 ```json
 {
-  "claimId": "CLM-1001",
-  "claimReference": "REF-1001"
+  "applicationId": "CLM-1001",
+  "applicationReference": "REF-1001"
 }
 ```
 
 **Response**
 ```json
 {
-  "claimId": "CLM-1001",
-  "claimReference": "REF-1001"
-}
-```
-
-**Purpose**
-Trigger fraud check callback flow
-
-**Validations**
-- The primary business identifier is required for all create/update operations
-- Reference fields must map to valid external or internal system keys
-- Status transitions must follow the target business workflow
-- Search filters must not exceed the allowed maximum length
-
-**Error Codes**
-- 400 Bad Request
-- 401 Unauthorized
-- 404 Not Found
-- 409 Conflict
-- 500 Internal Server Error
-
-### API 8: GET /claims/{id}/documents
-
-**Endpoint**
-GET /claims/{id}/documents
-
-**Request**
-```json
-{
-  "claimId": "CLM-1001",
-  "claimReference": "REF-1001"
-}
-```
-
-**Response**
-```json
-{
-  "claimId": "CLM-1001",
-  "claimReference": "REF-1001"
-}
-```
-
-**Purpose**
-Fetch claim-related documents
-
-**Validations**
-- The primary business identifier is required for all create/update operations
-- Reference fields must map to valid external or internal system keys
-- Status transitions must follow the target business workflow
-- Search filters must not exceed the allowed maximum length
-
-**Error Codes**
-- 400 Bad Request
-- 401 Unauthorized
-- 404 Not Found
-- 409 Conflict
-- 500 Internal Server Error
-
-### API 9: POST /claims/{id}/documents
-
-**Endpoint**
-POST /claims/{id}/documents
-
-**Request**
-```json
-{
-  "claimId": "CLM-1001",
-  "claimReference": "REF-1001"
-}
-```
-
-**Response**
-```json
-{
-  "claimId": "CLM-1001",
-  "claimReference": "REF-1001"
-}
-```
-
-**Purpose**
-Attach supporting documentary evidence
-
-**Validations**
-- The primary business identifier is required for all create/update operations
-- Reference fields must map to valid external or internal system keys
-- Status transitions must follow the target business workflow
-- Search filters must not exceed the allowed maximum length
-
-**Error Codes**
-- 400 Bad Request
-- 401 Unauthorized
-- 404 Not Found
-- 409 Conflict
-- 500 Internal Server Error
-
-### API 10: GET /partners/{partnerId}/status
-
-**Endpoint**
-GET /partners/{partnerId}/status
-
-**Request**
-```json
-{
-  "claimId": "CLM-1001",
-  "claimReference": "REF-1001",
-  "includeHistory": true
-}
-```
-
-**Response**
-```json
-{
-  "claimId": "CLM-1001",
-  "status": "in_review"
-}
-```
-
-**Purpose**
-View partner integration status
-
-**Validations**
-- The primary business identifier is required for all create/update operations
-- Reference fields must map to valid external or internal system keys
-- Status transitions must follow the target business workflow
-- Search filters must not exceed the allowed maximum length
-
-**Error Codes**
-- 400 Bad Request
-- 401 Unauthorized
-- 404 Not Found
-- 409 Conflict
-- 500 Internal Server Error
-
-### API 11: POST /partners/{partnerId}/callbacks
-
-**Endpoint**
-POST /partners/{partnerId}/callbacks
-
-**Request**
-```json
-{
-  "claimId": "CLM-1001",
-  "claimReference": "REF-1001"
-}
-```
-
-**Response**
-```json
-{
-  "claimId": "CLM-1001",
+  "applicationId": "CLM-1001",
   "status": "submitted"
 }
 ```
 
 **Purpose**
-Accept partner event callback payloads
+Retrieves the credit report and score needed for the underwriter dashboard after the system automatically pulls credit at submission; integrates with the Credit Bureau Service.
 
 **Validations**
 - The primary business identifier is required for all create/update operations
@@ -495,16 +383,127 @@ Accept partner event callback payloads
 - 409 Conflict
 - 500 Internal Server Error
 
-### API 12: PATCH /claims/{id}/status
+### API 9: GET /applications/{applicationId}/fraud-result
 
 **Endpoint**
-PATCH /claims/{id}/status
+GET /applications/{applicationId}/fraud-result
 
 **Request**
 ```json
 {
-  "claimId": "CLM-1001",
-  "claimReference": "REF-1001",
+  "applicationId": "CLM-1001",
+  "applicationReference": "REF-1001"
+}
+```
+
+**Response**
+```json
+{
+  "applicationId": "CLM-1001",
+  "status": "submitted"
+}
+```
+
+**Purpose**
+Retrieves the fraud-risk result required for the underwriter's side-by-side credit/fraud view; the result originates from the Fraud Detection Service and the fraud-check-completed Kafka flow.
+
+**Validations**
+- The primary business identifier is required for all create/update operations
+- Reference fields must map to valid external or internal system keys
+- Status transitions must follow the target business workflow
+- Search filters must not exceed the allowed maximum length
+
+**Error Codes**
+- 400 Bad Request
+- 401 Unauthorized
+- 404 Not Found
+- 409 Conflict
+- 500 Internal Server Error
+
+### API 10: GET /applications/{applicationId}/underwriting
+
+**Endpoint**
+GET /applications/{applicationId}/underwriting
+
+**Request**
+```json
+{
+  "applicationId": "CLM-1001",
+  "applicationReference": "REF-1001"
+}
+```
+
+**Response**
+```json
+{
+  "applicationId": "CLM-1001",
+  "status": "submitted"
+}
+```
+
+**Purpose**
+Provides the consolidated underwriting view required by "Underwriter can see credit and fraud results side by side before approving or declining," combining Credit Bureau Service and Fraud Detection Service results.
+
+**Validations**
+- The primary business identifier is required for all create/update operations
+- Reference fields must map to valid external or internal system keys
+- Status transitions must follow the target business workflow
+- Search filters must not exceed the allowed maximum length
+
+**Error Codes**
+- 400 Bad Request
+- 401 Unauthorized
+- 404 Not Found
+- 409 Conflict
+- 500 Internal Server Error
+
+### API 11: POST /applications/{applicationId}/decision
+
+**Endpoint**
+POST /applications/{applicationId}/decision
+
+**Request**
+```json
+{
+  "applicationId": "CLM-1001",
+  "applicationReference": "REF-1001"
+}
+```
+
+**Response**
+```json
+{
+  "applicationId": "CLM-1001",
+  "status": "submitted"
+}
+```
+
+**Purpose**
+Records the underwriter's approve or decline decision, matching the integration overview's explicit reference to "underwriter decisioning" and the requirement to approve or decline after reviewing credit and fraud results; approved processing can involve Core Banking Platform loan account creation.
+
+**Validations**
+- The primary business identifier is required for all create/update operations
+- Reference fields must map to valid external or internal system keys
+- Status transitions must follow the target business workflow
+- Search filters must not exceed the allowed maximum length
+
+**Error Codes**
+- 400 Bad Request
+- 401 Unauthorized
+- 404 Not Found
+- 409 Conflict
+- 500 Internal Server Error
+
+### API 12: POST /applications/{applicationId}/status
+
+**Endpoint**
+POST /applications/{applicationId}/status
+
+**Request**
+```json
+{
+  "applicationId": "CLM-1001",
+  "applicationReference": "REF-1001",
   "includeHistory": true
 }
 ```
@@ -512,13 +511,13 @@ PATCH /claims/{id}/status
 **Response**
 ```json
 {
-  "claimId": "CLM-1001",
-  "status": "in_review"
+  "applicationId": "CLM-1001",
+  "status": "submitted"
 }
 ```
 
 **Purpose**
-Apply updated claim processing status
+Applies lifecycle status changes such as submitted, under review, approved, declined, or funded and initiates the automatic communications required on "every status change" through application-status-changed and notification-delivery-requested Kafka events to the SMS / Email Gateway.
 
 **Validations**
 - The primary business identifier is required for all create/update operations
@@ -538,17 +537,17 @@ Apply updated claim processing status
 ### Submit Business Flow
 ```mermaid
 sequenceDiagram
-    participant UI as Claim Intake UI
+    participant UI as Application Intake UI
     participant GW as API Gateway
-    participant S as Integration Service
+    participant S as Application Integration Service
     participant P as Policy Service
     participant K as Kafka
-    UI->>GW: POST /claim
-    GW->>S: Submit claim payload
-    S->>P: Fetch claim reference data
+    UI->>GW: POST /application
+    GW->>S: Submit application payload
+    S->>P: Fetch application reference data
     P-->>S: Reference metadata
     S->>S: Validate business rules
-    S->>K: Publish claim-status-updates
+    S->>K: Publish application-status-changed
     S-->>GW: 201 Created
     GW-->>UI: Accepted
 ```
@@ -558,13 +557,13 @@ sequenceDiagram
 sequenceDiagram
     participant UI as Operations User
     participant GW as API Gateway
-    participant S as Integration Service
-    participant DB as Claim Data Store
+    participant S as Application Integration Service
+    participant DB as Application Data Store
     participant K as Kafka
-    UI->>GW: PUT /claim/{id}
-    GW->>S: Update claim request
+    UI->>GW: PUT /application/{id}
+    GW->>S: Update application request
     S->>DB: Validate and persist changes
-    S->>K: Publish claim-status-partner-notifications
+    S->>K: Publish fraud-check-completed
     S-->>GW: 200 OK
     GW-->>UI: Updated record
 ```
@@ -574,13 +573,13 @@ sequenceDiagram
 sequenceDiagram
     participant UI as Partner / Ops UI
     participant GW as API Gateway
-    participant S as Integration Service
-    participant DB as Claim Data Store
-    UI->>GW: GET /claim/{id}/status
+    participant S as Application Integration Service
+    participant DB as Application Data Store
+    UI->>GW: GET /application/{id}/status
     GW->>S: Status query
     S->>DB: Retrieve current state
     DB-->>S: State payload
-    S-->>GW: Claim status payload
+    S-->>GW: Application status payload
     GW-->>UI: Response
 ```
 
@@ -588,9 +587,9 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant F as Downstream Partner System
-    participant S as Integration Service
+    participant S as Application Integration Service
     participant K as Kafka
-    K->>S: fraud-check-requests
+    K->>S: notification-delivery-requested
     S->>S: Evaluate callback and update state
     S->>F: Acknowledge result
 ```
@@ -600,14 +599,14 @@ sequenceDiagram
 ### Entity Diagram
 ```mermaid
 classDiagram
-    class Claim {
-        +String claimId
-        +String claimReference
+    class Application {
+        +String applicationId
+        +String applicationReference
         +String status
     }
-    class ClaimDocument {
+    class ApplicationDocument {
         +String documentId
-        +String claimId
+        +String applicationId
         +String documentType
     }
     class PartnerEvent {
@@ -615,15 +614,15 @@ classDiagram
         +String partnerId
         +String eventType
     }
-    Claim "1" --> "*" ClaimDocument
-    Claim "1" --> "*" PartnerEvent
+    Application "1" --> "*" ApplicationDocument
+    Application "1" --> "*" PartnerEvent
 ```
 
 ### Database Tables
 | Table | Purpose |
 | --- | --- |
-| CLAIM | Core business record |
-| CLAIM_DOCUMENT | Supporting document metadata |
+| APPLICATION | Core business record |
+| APPLICATION_DOCUMENT | Supporting document metadata |
 | EVENT_LOG | Event audit and traceability record |
 
 ## 8. Integration Design
@@ -636,23 +635,23 @@ classDiagram
 | External Partner Gateway | Async |
 
 ### Events Published
-- claim-status-updates
-- claim-status-partner-notifications
+- application-status-changed
+- fraud-check-completed
 - ExternalCallbackReceived
 
 ### Events Consumed
-- fraud-check-requests
+- notification-delivery-requested
 - DownstreamCallbackResult
 
 ### Kafka Topics / Event Contracts
 | Topic | Purpose |
 | --- | --- |
-| claim-status-updates | Carries asynchronous claim status updates explicitly required by the document's '6 Kafka topics for async claim status updates and fraud-check callbacks.' |
-| claim-status-partner-notifications | Supports asynchronous distribution of claim status information to external partners, consistent with the requirement to integrate Claims Adjudication with 3 external partners and provide async claim status updates. |
-| fraud-check-requests | Represents fraud checks initiated toward the named Fraud Detection Service, paired with the document's explicit fraud-check callback event flow. |
-| fraud-check-callbacks | Carries the 'fraud-check callbacks' explicitly identified as part of the six-topic event-driven layer. |
-| payment-status-updates | Plausibly carries asynchronous status events associated with the named Partner Payments Gateway as part of the Claims Adjudication system's integration with external partners. |
-| document-status-updates | Plausibly carries asynchronous status events associated with the named Document Vault as part of the Claims Adjudication system's integration with external partners. |
+| application-status-changed | Carries loan application status transitions such as submitted, under review, approved, declined, and funded; the document requires real-time status tracking and email/SMS notification on every status change. |
+| fraud-check-completed | Carries completion/results of asynchronous fraud screening; the document requires every application to be screened for fraud before final approval, underwriters to see fraud results, and operations to be alerted for high-risk flags. |
+| notification-delivery-requested | Requests asynchronous delivery through the SMS / Email Gateway when application status changes; the document requires an email and SMS notification on every status change. |
+| claim.submitted.v1 | Claim submission event for adjudication |
+| claim.status.updated.v1 | Claim status changes pushed to downstream systems |
+| claim.fraud.check.requested.v1 | Fraud evaluation callback request |
 
 ## 9. Security Design
 
@@ -704,14 +703,14 @@ classDiagram
 
 ```mermaid
 flowchart LR
-    Ingress[Ingress / API Gateway] --> Pod1[Integration Service pod]
-    Pod1 --> DB[(Claim data store)]
+    Ingress[Ingress / API Gateway] --> Pod1[Application Integration Service pod]
+    Pod1 --> DB[(Application data store)]
     Pod1 --> Kafka[Kafka Cluster]
     Pod1 --> Partner[Partner Integration Layer]
 ```
 
 ### Deployment Notes
-- Container image: integration-service:latest
+- Container image: application-integration-service:latest
 - Replica count: 3 minimum, scale based on traffic
 - Resource sizing: 1 vCPU / 1-2 GB RAM per pod, plus storage per environment
 - Horizontal scaling enabled for peak demand
@@ -725,10 +724,10 @@ flowchart LR
 - Dashboard metrics for service health, resource usage, and business events
 
 ## 14. Assumptions
-- All six Kafka topics remain simple with stable event schemas.
-- No message transformation or dead-letter handling is required.
-- OAuth infrastructure and client credentials are available.
-- External systems expose documented, testable integration contracts.
+- External-system API contracts and test environments are stable and available.
+- Kafka pub/sub requires no dead-letter handling or complex event orchestration.
+- Moderate transformations can be implemented within Spring Boot services without a separate mapping platform.
+- OAuth uses an existing enterprise identity provider and established security patterns.
 
 ## 15. Risks & Dependencies
 
@@ -739,16 +738,16 @@ flowchart LR
 | Schema drift | Versioned event contracts and consumer validation |
 
 ### Risk Notes
-- Unspecified Kafka delivery guarantees may affect consumer design and testing.
-- Three external systems create interface and environment coordination risk.
-- OAuth token flows and authorization policies may vary across integrations.
-- Kafka schema or contract changes could disrupt six topic integrations.
+- Unspecified Kafka delivery guarantees may create duplicate or lost-event handling gaps.
+- Five external systems increase contract, environment, and coordination risk.
+- Four complex APIs may require deeper orchestration, validation, or error handling.
+- OAuth integration may introduce identity-provider and token-management constraints.
 
 ### Dependencies
-- Kafka platform team for six topic definitions, ACLs, and environments.
-- Identity/OAuth provider team for client registration and access policies.
-- Owners of the three external systems for contracts and test environments.
-- CI/CD and runtime platform for Spring Boot service deployment.
+- Five external-system owners must provide stable interfaces, credentials, and test environments.
+- Kafka platform team must provision three topics and define delivery and retention settings.
+- Identity provider team must configure OAuth clients, scopes, and required credentials.
+- Platform team must provide Spring Boot deployment, observability, and CI/CD infrastructure.
 
 ---
 
