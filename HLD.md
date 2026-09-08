@@ -1,14 +1,14 @@
-# {service_name}
+# Integration Service
 
 ## 1. Document Overview
 
 ### Purpose
-{service_name} provides a unified API layer for {primary_entity} orchestration, partner interaction, and event propagation across the target workflow.
+Integration Service provides a unified API layer for claim orchestration, partner interaction, and event propagation across the target workflow.
 
 ### Scope
 #### In Scope
-- {primary_entity_title} submission and lookup APIs
-- {primary_entity_title} validation and status retrieval
+- Claim submission and lookup APIs
+- Claim validation and status retrieval
 - Event publication to downstream systems
 - Integration with external partner systems
 
@@ -21,30 +21,30 @@
 ## 2. Business Context
 
 ### Problem Statement
-The target business workflow spans multiple internal systems and external partners, which creates fragmented visibility and delayed updates. {service_name} addresses this by consolidating {primary_entity} operations, validating the workflow, and publishing status events to downstream consumers.
+The target business workflow spans multiple internal systems and external partners, which creates fragmented visibility and delayed updates. Integration Service addresses this by consolidating claim operations, validating the workflow, and publishing status events to downstream consumers.
 
 ### Business Capabilities Supported
 | Capability | Description |
 |---|---|---|
-| {primary_entity_title} Lookup | Retrieve current state and metadata for the target business record |
-| {primary_entity_title} Submission | Submit and validate the target workflow request |
+| Claim Lookup | Retrieve current state and metadata for the target business record |
+| Claim Submission | Submit and validate the target workflow request |
 | State Tracking | Query lifecycle or processing status |
 | Partner Event Integration | Publish and consume callbacks and partner events |
 
 ## 3. Service Overview
 
 ### Service Responsibilities
-- Create {primary_entity}
-- Retrieve {primary_entity} details
-- Validate {primary_entity} state transitions
+- Create claim
+- Retrieve claim details
+- Validate claim state transitions
 - Publish business events
 - Consume partner callbacks
 - Enforce workflow validation rules
 
 ### Service Boundaries
 #### Owned by Service
-- {primary_entity_title} lifecycle data
-- {primary_entity_title} APIs
+- Claim lifecycle data
+- Claim APIs
 - Business validation rules
 - Event contracts
 
@@ -56,14 +56,14 @@ The target business workflow spans multiple internal systems and external partne
 
 ## 4. Functional Architecture
 
-This Complex integration (score 7) coordinates event-driven processing across three external systems using six Kafka topics: claim-status-updates, fraud-check-requests, fraud-check-callbacks, payment-status-updates, document-status-updates, and claim-submission-events. There are no APIs or named connectors, transformation complexity is none, and OAuth is the required security model; the estimated effort is 6-9 PM covering Kafka integrations, external-system integration, OAuth, testing, and hardening. EDA style: pub_sub. Test scope: Cover Kafka publish/consume flows, all external-system integrations, OAuth, contract tests, failure scenarios, and end-to-end integration..
+This Complex integration (score 7) coordinates claim-status processing across three external systems using six Kafka topics: claim-status-updates, claim-status-partner-notifications, fraud-check-requests, fraud-check-callbacks, payment-claim-status-events, and document-claim-status-events. It exposes no APIs and requires no data transformation, while OAuth security, Kafka integration, and coordination with the external systems are the primary drivers of the estimated 5-7 PM effort. EDA style: pub_sub. Test scope: Cover Kafka producer/consumer flows across all 6 topics, OAuth, external-system integration, failures, and end-to-end pub/sub scenarios..
 
 ```mermaid
 flowchart LR
     Client([Consumer Apps]) --> GW[API Gateway]
-    GW --> S[{service_name}]
+    GW --> S[Integration Service]
     S --> V[Business Validation / Rules]
-    V --> DB[({primary_entity_title} data store)]
+    V --> DB[(Claim data store)]
     V --> K[Kafka Event Stream]
     K --> D[Partner & Downstream Systems]
 ```
@@ -94,15 +94,16 @@ POST /claims
 **Request**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
-  "{reference_field}": "{reference_value}"
+  "claimId": "CLM-1001",
+  "claimReference": "REF-1001"
 }
 ```
 
 **Response**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}"
+  "claimId": "CLM-1001",
+  "status": "submitted"
 }
 ```
 
@@ -130,17 +131,16 @@ GET /claims/{id}
 **Request**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
-  "{reference_field}": "{reference_value}"
+  "claimId": "CLM-1001",
+  "claimReference": "REF-1001"
 }
 ```
 
 **Response**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
-  "{reference_field}": "{reference_value}",
-  "status": "submitted"
+  "claimId": "CLM-1001",
+  "claimReference": "REF-1001"
 }
 ```
 
@@ -168,17 +168,16 @@ PUT /claims/{id}
 **Request**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
-  "{reference_field}": "{reference_value}"
+  "claimId": "CLM-1001",
+  "claimReference": "REF-1001"
 }
 ```
 
 **Response**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
-  "{reference_field}": "{reference_value}",
-  "status": "submitted"
+  "claimId": "CLM-1001",
+  "claimReference": "REF-1001"
 }
 ```
 
@@ -206,15 +205,15 @@ GET /policies/{policyId}
 **Request**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
-  "{reference_field}": "{reference_value}"
+  "claimId": "CLM-1001",
+  "claimReference": "REF-1001"
 }
 ```
 
 **Response**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
+  "claimId": "CLM-1001",
   "status": "submitted"
 }
 ```
@@ -243,17 +242,16 @@ POST /claims/{id}/submit
 **Request**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
-  "{reference_field}": "{reference_value}"
+  "claimId": "CLM-1001",
+  "claimReference": "REF-1001"
 }
 ```
 
 **Response**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
-  "{reference_field}": "{reference_value}",
-  "status": "submitted"
+  "claimId": "CLM-1001",
+  "claimReference": "REF-1001"
 }
 ```
 
@@ -281,7 +279,8 @@ GET /claims/{id}/status
 **Request**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
+  "claimId": "CLM-1001",
+  "claimReference": "REF-1001",
   "includeHistory": true
 }
 ```
@@ -289,7 +288,7 @@ GET /claims/{id}/status
 **Response**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
+  "claimId": "CLM-1001",
   "status": "in_review"
 }
 ```
@@ -318,17 +317,16 @@ POST /claims/{id}/fraud-check
 **Request**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
-  "{reference_field}": "{reference_value}"
+  "claimId": "CLM-1001",
+  "claimReference": "REF-1001"
 }
 ```
 
 **Response**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
-  "{reference_field}": "{reference_value}",
-  "status": "submitted"
+  "claimId": "CLM-1001",
+  "claimReference": "REF-1001"
 }
 ```
 
@@ -356,17 +354,16 @@ GET /claims/{id}/documents
 **Request**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
-  "{reference_field}": "{reference_value}"
+  "claimId": "CLM-1001",
+  "claimReference": "REF-1001"
 }
 ```
 
 **Response**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
-  "{reference_field}": "{reference_value}",
-  "status": "submitted"
+  "claimId": "CLM-1001",
+  "claimReference": "REF-1001"
 }
 ```
 
@@ -394,17 +391,16 @@ POST /claims/{id}/documents
 **Request**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
-  "{reference_field}": "{reference_value}"
+  "claimId": "CLM-1001",
+  "claimReference": "REF-1001"
 }
 ```
 
 **Response**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
-  "{reference_field}": "{reference_value}",
-  "status": "submitted"
+  "claimId": "CLM-1001",
+  "claimReference": "REF-1001"
 }
 ```
 
@@ -432,7 +428,8 @@ GET /partners/{partnerId}/status
 **Request**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
+  "claimId": "CLM-1001",
+  "claimReference": "REF-1001",
   "includeHistory": true
 }
 ```
@@ -440,7 +437,7 @@ GET /partners/{partnerId}/status
 **Response**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
+  "claimId": "CLM-1001",
   "status": "in_review"
 }
 ```
@@ -469,15 +466,16 @@ POST /partners/{partnerId}/callbacks
 **Request**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
-  "{reference_field}": "{reference_value}"
+  "claimId": "CLM-1001",
+  "claimReference": "REF-1001"
 }
 ```
 
 **Response**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}"
+  "claimId": "CLM-1001",
+  "status": "submitted"
 }
 ```
 
@@ -505,7 +503,8 @@ PATCH /claims/{id}/status
 **Request**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
+  "claimId": "CLM-1001",
+  "claimReference": "REF-1001",
   "includeHistory": true
 }
 ```
@@ -513,7 +512,7 @@ PATCH /claims/{id}/status
 **Response**
 ```json
 {
-  "{primary_entity}_id": "{identifier_value}",
+  "claimId": "CLM-1001",
   "status": "in_review"
 }
 ```
@@ -539,17 +538,17 @@ Apply updated claim processing status
 ### Submit Business Flow
 ```mermaid
 sequenceDiagram
-    participant UI as {actor_1}
+    participant UI as Claim Intake UI
     participant GW as API Gateway
-    participant S as {service_label}
-    participant P as {partner_system_1}
+    participant S as Integration Service
+    participant P as External Partner System
     participant K as Kafka
-    UI->>GW: POST /{primary_entity}
-    GW->>S: Submit {primary_entity} payload
-    S->>P: Fetch {primary_entity} reference data
+    UI->>GW: POST /claim
+    GW->>S: Submit claim payload
+    S->>P: Fetch claim reference data
     P-->>S: Reference metadata
     S->>S: Validate business rules
-    S->>K: Publish {event_name}.v1
+    S->>K: Publish claim-status-updates
     S-->>GW: 201 Created
     GW-->>UI: Accepted
 ```
@@ -557,15 +556,15 @@ sequenceDiagram
 ### Update State Flow
 ```mermaid
 sequenceDiagram
-    participant UI as {actor_2}
+    participant UI as Operations User
     participant GW as API Gateway
-    participant S as {service_label}
-    participant DB as {data_store}
+    participant S as Integration Service
+    participant DB as Claims Data Store
     participant K as Kafka
-    UI->>GW: PUT /{primary_entity}/{id}
-    GW->>S: Update {primary_entity} request
+    UI->>GW: PUT /claim/{id}
+    GW->>S: Update claim request
     S->>DB: Validate and persist changes
-    S->>K: Publish {status_event}.v1
+    S->>K: Publish claim-status-partner-notifications
     S-->>GW: 200 OK
     GW-->>UI: Updated record
 ```
@@ -573,25 +572,25 @@ sequenceDiagram
 ### Query Status Flow
 ```mermaid
 sequenceDiagram
-    participant UI as {actor_3}
+    participant UI as Partner / Ops UI
     participant GW as API Gateway
-    participant S as {service_label}
-    participant DB as {data_store}
-    UI->>GW: GET /{primary_entity}/{id}/status
+    participant S as Integration Service
+    participant DB as Claims Data Store
+    UI->>GW: GET /claim/{id}/status
     GW->>S: Status query
     S->>DB: Retrieve current state
     DB-->>S: State payload
-    S-->>GW: {primary_entity_title} status payload
+    S-->>GW: Claim status payload
     GW-->>UI: Response
 ```
 
 ### Callback / Event Publication Flow
 ```mermaid
 sequenceDiagram
-    participant F as {downstream_system}
-    participant S as {service_label}
+    participant F as Downstream Partner System
+    participant S as Integration Service
     participant K as Kafka
-    K->>S: {callback_event}.v1
+    K->>S: fraud-check-requests
     S->>S: Evaluate callback and update state
     S->>F: Acknowledge result
 ```
@@ -601,14 +600,14 @@ sequenceDiagram
 ### Entity Diagram
 ```mermaid
 classDiagram
-    class {primary_entity_title} {
-        +String {primary_entity}_id
-        +String {primary_entity}_reference
+    class Claim {
+        +String claimId
+        +String claimReference
         +String status
     }
-    class {primary_entity_title}Document {
+    class ClaimDocument {
         +String documentId
-        +String {primary_entity}_id
+        +String claimId
         +String documentType
     }
     class PartnerEvent {
@@ -616,15 +615,15 @@ classDiagram
         +String partnerId
         +String eventType
     }
-    {primary_entity_title} "1" --> "*" {primary_entity_title}Document
-    {primary_entity_title} "1" --> "*" PartnerEvent
+    Claim "1" --> "*" ClaimDocument
+    Claim "1" --> "*" PartnerEvent
 ```
 
 ### Database Tables
 | Table | Purpose |
 |---|---|---|
-| {PRIMARY_ENTITY_TITLE} | Core business record |
-| {PRIMARY_ENTITY_TITLE}_DOCUMENT | Supporting document metadata |
+| CLAIM | Core business record |
+| CLAIM_DOCUMENT | Supporting document metadata |
 | EVENT_LOG | Event audit and traceability record |
 
 ## 8. Integration Design
@@ -637,23 +636,23 @@ classDiagram
 | External Partner Gateway | Async |
 
 ### Events Published
-- {primary_entity_title}Submitted
-- {primary_entity_title}StatusUpdated
+- claim-status-updates
+- claim-status-partner-notifications
 - ExternalCallbackReceived
 
 ### Events Consumed
-- PartnerStatusChanged
+- fraud-check-requests
 - DownstreamCallbackResult
 
 ### Kafka Topics / Event Contracts
 | Topic | Purpose |
 |---|---|---|
-| claim-status-updates | Publishes asynchronous claim status changes, directly grounded in the document's 'async claim status updates' requirement. |
-| fraud-check-requests | Carries asynchronous fraud-check work associated with claims to support the stated integration with the Fraud Detection Service and its fraud-check callbacks. |
-| fraud-check-callbacks | Carries the explicitly stated 'fraud-check callbacks' from the Fraud Detection Service back into claims processing. |
-| payment-status-updates | Provides asynchronous payment-related status events associated with the explicitly named Partner Payments Gateway integration and the stated claim-status update event layer. |
-| document-status-updates | Provides asynchronous document-related status events associated with the explicitly named Document Vault integration and the stated claim-status update event layer. |
-| claim-submission-events | Represents asynchronous claim lifecycle activity grounded in the documented claims-submission capability and the six-topic event-driven layer. |
+| claim-status-updates | Carries asynchronous claim status updates, directly grounded in the requirement for '6 Kafka topics for async claim status updates and fraud-check callbacks.' |
+| claim-status-partner-notifications | Publishes claim status changes for external-partner integration, grounded in the integration of Claims Adjudication with three external partners and the stated async claim status update capability. |
+| fraud-check-requests | Carries claims requiring fraud evaluation by the named Fraud Detection Service, inferred from the explicitly required 'fraud-check callbacks' integration. |
+| fraud-check-callbacks | Carries asynchronous fraud-check results or callbacks from the Fraud Detection Service, directly grounded in 'fraud-check callbacks.' |
+| payment-claim-status-events | Provides claim-related asynchronous status events associated with the named Partner Payments Gateway, derived from the external-partner integration requirement and the stated claim-status event layer. |
+| document-claim-status-events | Provides claim-related asynchronous status events associated with the named Document Vault, derived from the external-partner integration requirement and the stated claim-status event layer. |
 
 ## 9. Security Design
 
@@ -705,14 +704,14 @@ classDiagram
 
 ```mermaid
 flowchart LR
-    Ingress[Ingress / API Gateway] --> Pod1[{service_name} pod]
-    Pod1 --> DB[({primary_entity_title} data store)]
+    Ingress[Ingress / API Gateway] --> Pod1[Integration Service pod]
+    Pod1 --> DB[(Claim data store)]
     Pod1 --> Kafka[Kafka Cluster]
     Pod1 --> Partner[Partner Integration Layer]
 ```
 
 ### Deployment Notes
-- Container image: {service_name}:latest
+- Container image: integration-service:latest
 - Replica count: 3 minimum, scale based on traffic
 - Resource sizing: 1 vCPU / 1-2 GB RAM per pod, plus storage per environment
 - Horizontal scaling enabled for peak demand
@@ -726,10 +725,10 @@ flowchart LR
 - Dashboard metrics for service health, resource usage, and business events
 
 ## 14. Assumptions
-- All 3 external-system interfaces and test environments are documented and available.
-- Kafka infrastructure and topic provisioning are handled by the platform team.
-- OAuth identity provider, client registration, scopes, and credentials are available.
-- Five topics remain simple and no message transformation is required.
+- All 6 Kafka topics remain simple with stable event schemas.
+- No payload transformation or complex business mapping is required.
+- No dead-letter handling is required for Kafka consumers.
+- OAuth endpoints, credentials, scopes, and flows are defined by dependent systems.
 
 ## 15. Risks & Dependencies
 
@@ -740,16 +739,16 @@ flowchart LR
 | Schema drift | Versioned event contracts and consumer validation |
 
 ### Risk Notes
-- Kafka delivery guarantees are unspecified, creating duplicate or loss-handling uncertainty.
-- Three external systems may introduce availability and interface-contract risks.
-- OAuth token flows, scopes, or identity-provider configuration may delay integration.
-- The moderate-complexity Kafka topic may require additional schema or processing work.
+- Unspecified Kafka delivery guarantees may affect consumer design and testing.
+- OAuth integration details may vary across the 3 external systems.
+- External-system availability or contract changes could delay integration testing.
+- Six Kafka topics increase schema and producer/consumer coordination points.
 
 ### Dependencies
-- Kafka platform team for 6 topics, schemas, ACLs, and environments.
-- Identity/security team for OAuth client registration, scopes, and credentials.
-- Owners of all 3 external systems for contracts, connectivity, and test environments.
-- CI/CD and runtime platform for Spring Boot service deployment and observability.
+- Kafka platform and all 6 topic definitions must be provisioned and accessible.
+- All 3 external systems must provide stable integration contracts and test environments.
+- OAuth identity provider must provide application registration, credentials, and scopes.
+- Upstream producers and downstream consumers must align on event schemas and topic usage.
 
 ---
 
