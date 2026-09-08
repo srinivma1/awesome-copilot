@@ -56,7 +56,7 @@ The target business workflow spans multiple internal systems and external partne
 
 ## 4. Functional Architecture
 
-This Complex integration (score 11) spans 12 application-focused APIs, 3 Kafka topics, and 5 external systems, using OAuth security and moderate transformation complexity to support application creation and updates, submission, document handling, status and assessment retrieval, decisions, and status updates. The estimated effort is 14-18 PM, reflecting the broad integration surface and several complex APIs, with Kafka supporting application status, fraud-check completion, and notification-delivery event flows. EDA style: pub_sub. Test scope: Cover API contracts, OAuth, transformations, Kafka flows, external-system integration, failure handling, and end-to-end regression..
+This Complex integration (score 11) spans 12 application lifecycle APIs, three Kafka topics, and five external systems, covering application creation and updates, submission, documents, status, credit reporting, fraud results, underwriting, decisions, and status updates. The design must accommodate OAuth-secured interactions, moderate transformation complexity, and Kafka-based processing for application-status-changed, fraud-check-completed, and notification-delivery-requested, consistent with the 28-38 PD estimate driven by the broad integration surface and complexity. EDA style: pub_sub. Test scope: Cover API contracts, OAuth, transformations, Kafka flows, and end-to-end integration with all five external systems..
 
 ```mermaid
 flowchart LR
@@ -73,18 +73,18 @@ flowchart LR
 ### API Catalogue
 | API | Method | Purpose |
 | --- | --- | --- |
-| POST /applications | POST | Starts a loan application and persists applicant/loan data, supporting the requirement that an applicant can "start, save, and resume a loan application"; integrates with the Core Banking Platform, where applicant and loan data currently lives. |
-| PUT /applications/{applicationId} | PUT | Saves updates to an in-progress loan application so an applicant can save and later resume it; integrates with the Core Banking Platform. |
-| GET /applications/{applicationId} | GET | Retrieves a saved loan application so the applicant can resume it, directly supporting the "start, save, and resume" requirement; reads applicant/loan data associated with the Core Banking Platform. |
-| POST /applications/{applicationId}/submit | POST | Submits a completed application and initiates the underwriting flow described by "automatically pulls a credit report once an application is submitted" and fraud screening "before it reaches underwriting"; coordinates with the Credit Bureau Service and the event-driven fraud flow using Fraud Detection Service. |
-| POST /applications/{applicationId}/documents | POST | Uploads pay stubs, ID, proof of address, or other supporting documents as required by the applicant portal; storage is expected to involve the Document Management System if the existing DMS option is selected. |
-| GET /applications/{applicationId}/documents/{documentId} | GET | Retrieves an application document, consistent with the Document Management System integration whose stated purpose is to "store and retrieve signed loan agreements and disclosures." |
-| GET /applications/{applicationId}/status | GET | Returns the application's current submitted, under-review, approved, declined, or funded status so applicants can "view real-time application status without calling support"; status changes also feed the application-status-changed Kafka flow. |
-| GET /applications/{applicationId}/credit-result | GET | Retrieves the credit report and score needed for the underwriter dashboard after the system automatically pulls credit at submission; integrates with the Credit Bureau Service. |
-| GET /applications/{applicationId}/fraud-result | GET | Retrieves the fraud-risk result required for the underwriter's side-by-side credit/fraud view; the result originates from the Fraud Detection Service and the fraud-check-completed Kafka flow. |
-| GET /applications/{applicationId}/underwriting | GET | Provides the consolidated underwriting view required by "Underwriter can see credit and fraud results side by side before approving or declining," combining Credit Bureau Service and Fraud Detection Service results. |
-| POST /applications/{applicationId}/decision | POST | Records the underwriter's approve or decline decision, matching the integration overview's explicit reference to "underwriter decisioning" and the requirement to approve or decline after reviewing credit and fraud results; approved processing can involve Core Banking Platform loan account creation. |
-| POST /applications/{applicationId}/status | POST | Applies lifecycle status changes such as submitted, under review, approved, declined, or funded and initiates the automatic communications required on "every status change" through application-status-changed and notification-delivery-requested Kafka events to the SMS / Email Gateway. |
+| POST /applications | POST | Starts a loan application for the requirement that an applicant can "start, save, and resume a loan application"; persists applicant and loan data through the Core Banking Platform, whose internal schema is the current source for that data. |
+| PUT /applications/{applicationId} | PUT | Saves updates to an in-progress application so the applicant can "start, save, and resume a loan application," using the Core Banking Platform for applicant and loan data. |
+| GET /applications/{applicationId} | GET | Retrieves a saved loan application so an applicant can resume it, supporting the Applicant Portal requirement to "start, save, and resume" applications and reading loan/applicant data associated with the Core Banking Platform. |
+| POST /applications/{applicationId}/submit | POST | Submits a completed application and initiates the document's required underwriting flow: automatic credit-report pull and fraud screening; it interacts with the Credit Bureau Service, Fraud Detection Service, and the event-driven layer. |
+| POST /applications/{applicationId}/documents | POST | Supports the requirement that applicants can upload "pay stubs, ID, proof of address"; document persistence would use the Document Management System if the architecture open question resolves in favor of the existing system. |
+| GET /applications/{applicationId}/documents/{documentId} | GET | Retrieves application documents, corresponding to document handling in the Applicant Portal and the Document Management System integration for storing and retrieving loan documents. |
+| GET /applications/{applicationId}/status | GET | Provides the applicant-facing "real-time application status" for submitted, under review, approved, declined, or funded applications without requiring a support call. |
+| GET /applications/{applicationId}/credit-report | GET | Retrieves the credit report and score needed for the requirement that the system automatically pulls credit data at submission and lets an underwriter see credit and fraud results side by side; it uses the Credit Bureau Service. |
+| GET /applications/{applicationId}/fraud-result | GET | Retrieves the fraud risk result needed for underwriters to see fraud signals before approving or declining; the result originates from the Fraud Detection Service and fraud-check-completed event flow. |
+| GET /applications/{applicationId}/underwriting | GET | Provides the underwriter dashboard's consolidated view so the underwriter can "see credit and fraud results side by side before approving or declining," combining Credit Bureau Service and Fraud Detection Service results. |
+| POST /applications/{applicationId}/decision | POST | Records the underwriter's approve-or-decline decision described in the underwriting requirements and drives the resulting application status; approved processing can interact with the Core Banking Platform for loan account creation. |
+| POST /applications/{applicationId}/status | POST | Records application transitions such as under review, approved, declined, and funded and supports the requirement for email and SMS on every status change through application-status-changed and notification-delivery-requested events consumed by the SMS / Email Gateway. |
 
 ### API 1: POST /applications
 
@@ -108,7 +108,7 @@ POST /applications
 ```
 
 **Purpose**
-Starts a loan application and persists applicant/loan data, supporting the requirement that an applicant can "start, save, and resume a loan application"; integrates with the Core Banking Platform, where applicant and loan data currently lives.
+Starts a loan application for the requirement that an applicant can "start, save, and resume a loan application"; persists applicant and loan data through the Core Banking Platform, whose internal schema is the current source for that data.
 
 **Validations**
 - The primary business identifier is required for all create/update operations
@@ -145,7 +145,7 @@ PUT /applications/{applicationId}
 ```
 
 **Purpose**
-Saves updates to an in-progress loan application so an applicant can save and later resume it; integrates with the Core Banking Platform.
+Saves updates to an in-progress application so the applicant can "start, save, and resume a loan application," using the Core Banking Platform for applicant and loan data.
 
 **Validations**
 - The primary business identifier is required for all create/update operations
@@ -182,7 +182,7 @@ GET /applications/{applicationId}
 ```
 
 **Purpose**
-Retrieves a saved loan application so the applicant can resume it, directly supporting the "start, save, and resume" requirement; reads applicant/loan data associated with the Core Banking Platform.
+Retrieves a saved loan application so an applicant can resume it, supporting the Applicant Portal requirement to "start, save, and resume" applications and reading loan/applicant data associated with the Core Banking Platform.
 
 **Validations**
 - The primary business identifier is required for all create/update operations
@@ -219,7 +219,7 @@ POST /applications/{applicationId}/submit
 ```
 
 **Purpose**
-Submits a completed application and initiates the underwriting flow described by "automatically pulls a credit report once an application is submitted" and fraud screening "before it reaches underwriting"; coordinates with the Credit Bureau Service and the event-driven fraud flow using Fraud Detection Service.
+Submits a completed application and initiates the document's required underwriting flow: automatic credit-report pull and fraud screening; it interacts with the Credit Bureau Service, Fraud Detection Service, and the event-driven layer.
 
 **Validations**
 - The primary business identifier is required for all create/update operations
@@ -256,7 +256,7 @@ POST /applications/{applicationId}/documents
 ```
 
 **Purpose**
-Uploads pay stubs, ID, proof of address, or other supporting documents as required by the applicant portal; storage is expected to involve the Document Management System if the existing DMS option is selected.
+Supports the requirement that applicants can upload "pay stubs, ID, proof of address"; document persistence would use the Document Management System if the architecture open question resolves in favor of the existing system.
 
 **Validations**
 - The primary business identifier is required for all create/update operations
@@ -293,7 +293,7 @@ GET /applications/{applicationId}/documents/{documentId}
 ```
 
 **Purpose**
-Retrieves an application document, consistent with the Document Management System integration whose stated purpose is to "store and retrieve signed loan agreements and disclosures."
+Retrieves application documents, corresponding to document handling in the Applicant Portal and the Document Management System integration for storing and retrieving loan documents.
 
 **Validations**
 - The primary business identifier is required for all create/update operations
@@ -331,7 +331,7 @@ GET /applications/{applicationId}/status
 ```
 
 **Purpose**
-Returns the application's current submitted, under-review, approved, declined, or funded status so applicants can "view real-time application status without calling support"; status changes also feed the application-status-changed Kafka flow.
+Provides the applicant-facing "real-time application status" for submitted, under review, approved, declined, or funded applications without requiring a support call.
 
 **Validations**
 - The primary business identifier is required for all create/update operations
@@ -346,10 +346,10 @@ Returns the application's current submitted, under-review, approved, declined, o
 - 409 Conflict
 - 500 Internal Server Error
 
-### API 8: GET /applications/{applicationId}/credit-result
+### API 8: GET /applications/{applicationId}/credit-report
 
 **Endpoint**
-GET /applications/{applicationId}/credit-result
+GET /applications/{applicationId}/credit-report
 
 **Request**
 ```json
@@ -368,7 +368,7 @@ GET /applications/{applicationId}/credit-result
 ```
 
 **Purpose**
-Retrieves the credit report and score needed for the underwriter dashboard after the system automatically pulls credit at submission; integrates with the Credit Bureau Service.
+Retrieves the credit report and score needed for the requirement that the system automatically pulls credit data at submission and lets an underwriter see credit and fraud results side by side; it uses the Credit Bureau Service.
 
 **Validations**
 - The primary business identifier is required for all create/update operations
@@ -405,7 +405,7 @@ GET /applications/{applicationId}/fraud-result
 ```
 
 **Purpose**
-Retrieves the fraud-risk result required for the underwriter's side-by-side credit/fraud view; the result originates from the Fraud Detection Service and the fraud-check-completed Kafka flow.
+Retrieves the fraud risk result needed for underwriters to see fraud signals before approving or declining; the result originates from the Fraud Detection Service and fraud-check-completed event flow.
 
 **Validations**
 - The primary business identifier is required for all create/update operations
@@ -442,7 +442,7 @@ GET /applications/{applicationId}/underwriting
 ```
 
 **Purpose**
-Provides the consolidated underwriting view required by "Underwriter can see credit and fraud results side by side before approving or declining," combining Credit Bureau Service and Fraud Detection Service results.
+Provides the underwriter dashboard's consolidated view so the underwriter can "see credit and fraud results side by side before approving or declining," combining Credit Bureau Service and Fraud Detection Service results.
 
 **Validations**
 - The primary business identifier is required for all create/update operations
@@ -479,7 +479,7 @@ POST /applications/{applicationId}/decision
 ```
 
 **Purpose**
-Records the underwriter's approve or decline decision, matching the integration overview's explicit reference to "underwriter decisioning" and the requirement to approve or decline after reviewing credit and fraud results; approved processing can involve Core Banking Platform loan account creation.
+Records the underwriter's approve-or-decline decision described in the underwriting requirements and drives the resulting application status; approved processing can interact with the Core Banking Platform for loan account creation.
 
 **Validations**
 - The primary business identifier is required for all create/update operations
@@ -517,7 +517,7 @@ POST /applications/{applicationId}/status
 ```
 
 **Purpose**
-Applies lifecycle status changes such as submitted, under review, approved, declined, or funded and initiates the automatic communications required on "every status change" through application-status-changed and notification-delivery-requested Kafka events to the SMS / Email Gateway.
+Records application transitions such as under review, approved, declined, and funded and supports the requirement for email and SMS on every status change through application-status-changed and notification-delivery-requested events consumed by the SMS / Email Gateway.
 
 **Validations**
 - The primary business identifier is required for all create/update operations
@@ -646,9 +646,9 @@ classDiagram
 ### Kafka Topics / Event Contracts
 | Topic | Purpose |
 | --- | --- |
-| application-status-changed | Carries loan application status transitions such as submitted, under review, approved, declined, and funded; the document requires real-time status tracking and email/SMS notification on every status change. |
-| fraud-check-completed | Carries completion/results of asynchronous fraud screening; the document requires every application to be screened for fraud before final approval, underwriters to see fraud results, and operations to be alerted for high-risk flags. |
-| notification-delivery-requested | Requests asynchronous delivery through the SMS / Email Gateway when application status changes; the document requires an email and SMS notification on every status change. |
+| application-status-changed | Carries loan application status transitions such as submitted, under review, approved, declined, and funded, supporting the requirement for real-time applicant status tracking and automatic email/SMS notification on every status change. |
+| fraud-check-completed | Carries completion/results of the asynchronous fraud screening required to score each application before final approval and supports the operations alert when an application is flagged high-risk. |
+| notification-delivery-requested | Requests delivery through the asynchronous SMS / Email Gateway, implementing the requirement that applicants receive email and SMS notifications whenever application status changes. |
 | claim.submitted.v1 | Claim submission event for adjudication |
 | claim.status.updated.v1 | Claim status changes pushed to downstream systems |
 | claim.fraud.check.requested.v1 | Fraud evaluation callback request |
@@ -724,10 +724,10 @@ flowchart LR
 - Dashboard metrics for service health, resource usage, and business events
 
 ## 14. Assumptions
-- External-system API contracts and test environments are stable and available.
-- Kafka pub/sub requires no dead-letter handling or complex event orchestration.
-- Moderate transformations can be implemented within Spring Boot services without a separate mapping platform.
-- OAuth uses an existing enterprise identity provider and established security patterns.
+- API and Kafka contracts are defined, versioned, and stable.
+- OAuth provider, scopes, credentials, and token flows are available.
+- Moderate transformations require no major custom mapping framework.
+- No Kafka dead-letter handling is required as stated.
 
 ## 15. Risks & Dependencies
 
@@ -738,16 +738,16 @@ flowchart LR
 | Schema drift | Versioned event contracts and consumer validation |
 
 ### Risk Notes
-- Unspecified Kafka delivery guarantees may create duplicate or lost-event handling gaps.
-- Five external systems increase contract, environment, and coordination risk.
-- Four complex APIs may require deeper orchestration, validation, or error handling.
-- OAuth integration may introduce identity-provider and token-management constraints.
+- Six complex APIs may introduce implementation and contract edge cases.
+- Five external systems increase coordination, availability, and interface-change risk.
+- Unspecified Kafka delivery guarantees could affect reliability and consumer behavior.
+- OAuth configuration and authorization expectations may differ across integrations.
 
 ### Dependencies
-- Five external-system owners must provide stable interfaces, credentials, and test environments.
-- Kafka platform team must provision three topics and define delivery and retention settings.
-- Identity provider team must configure OAuth clients, scopes, and required credentials.
-- Platform team must provide Spring Boot deployment, observability, and CI/CD infrastructure.
+- Five external systems must provide accessible environments and stable interfaces.
+- OAuth identity provider and security configuration must be available.
+- Kafka infrastructure and all three topic definitions must be provisioned.
+- Upstream publishers and downstream consumers must agree event schemas and semantics.
 
 ---
 
