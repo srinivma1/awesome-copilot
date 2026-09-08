@@ -25,7 +25,7 @@ The target business workflow spans multiple internal systems and external partne
 
 ### Business Capabilities Supported
 | Capability | Description |
-|---|---|---|
+| --- | --- |
 | Claim Lookup | Retrieve current state and metadata for the target business record |
 | Claim Submission | Submit and validate the target workflow request |
 | State Tracking | Query lifecycle or processing status |
@@ -56,7 +56,7 @@ The target business workflow spans multiple internal systems and external partne
 
 ## 4. Functional Architecture
 
-This Complex integration (score 7) coordinates claim-status processing across three external systems using six Kafka topics: claim-status-updates, claim-status-partner-notifications, fraud-check-requests, fraud-check-callbacks, payment-claim-status-events, and document-claim-status-events. It exposes no APIs and requires no data transformation, while OAuth security, Kafka integration, and coordination with the external systems are the primary drivers of the estimated 5-7 PM effort. EDA style: pub_sub. Test scope: Cover Kafka producer/consumer flows across all 6 topics, OAuth, external-system integration, failures, and end-to-end pub/sub scenarios..
+This Complex integration (score 7) coordinates claim status, fraud checks, payments, documents, and partner notifications across three external systems using six Kafka topics: claim-status-updates, claim-status-partner-notifications, fraud-check-requests, fraud-check-callbacks, payment-status-updates, and document-status-updates. It exposes no APIs and requires OAuth security, with no transformation complexity; the estimated effort is 6-9 PM because Kafka, OAuth, and three-system integration require coordinated delivery. EDA style: pub_sub. Test scope: Cover Kafka producer/consumer contracts, OAuth, all three external integrations, failure handling, and end-to-end pub/sub flows..
 
 ```mermaid
 flowchart LR
@@ -72,7 +72,7 @@ flowchart LR
 
 ### API Catalogue
 | API | Method | Purpose |
-|---|---|---|
+| --- | --- | --- |
 | POST /claims | POST | Submit a new claim for adjudication |
 | GET /claims/{id} | GET | Retrieve claim details |
 | PUT /claims/{id} | PUT | Update claim information |
@@ -541,7 +541,7 @@ sequenceDiagram
     participant UI as Claim Intake UI
     participant GW as API Gateway
     participant S as Integration Service
-    participant P as External Partner System
+    participant P as Policy Service
     participant K as Kafka
     UI->>GW: POST /claim
     GW->>S: Submit claim payload
@@ -559,7 +559,7 @@ sequenceDiagram
     participant UI as Operations User
     participant GW as API Gateway
     participant S as Integration Service
-    participant DB as Claims Data Store
+    participant DB as Claim Data Store
     participant K as Kafka
     UI->>GW: PUT /claim/{id}
     GW->>S: Update claim request
@@ -575,7 +575,7 @@ sequenceDiagram
     participant UI as Partner / Ops UI
     participant GW as API Gateway
     participant S as Integration Service
-    participant DB as Claims Data Store
+    participant DB as Claim Data Store
     UI->>GW: GET /claim/{id}/status
     GW->>S: Status query
     S->>DB: Retrieve current state
@@ -621,7 +621,7 @@ classDiagram
 
 ### Database Tables
 | Table | Purpose |
-|---|---|---|
+| --- | --- |
 | CLAIM | Core business record |
 | CLAIM_DOCUMENT | Supporting document metadata |
 | EVENT_LOG | Event audit and traceability record |
@@ -630,7 +630,7 @@ classDiagram
 
 ### Downstream Systems
 | System | Type |
-|---|---|---|
+| --- | --- |
 | Core Data Store | Sync |
 | Kafka | Async |
 | External Partner Gateway | Async |
@@ -646,13 +646,13 @@ classDiagram
 
 ### Kafka Topics / Event Contracts
 | Topic | Purpose |
-|---|---|---|
-| claim-status-updates | Carries asynchronous claim status updates, directly grounded in the requirement for '6 Kafka topics for async claim status updates and fraud-check callbacks.' |
-| claim-status-partner-notifications | Publishes claim status changes for external-partner integration, grounded in the integration of Claims Adjudication with three external partners and the stated async claim status update capability. |
-| fraud-check-requests | Carries claims requiring fraud evaluation by the named Fraud Detection Service, inferred from the explicitly required 'fraud-check callbacks' integration. |
-| fraud-check-callbacks | Carries asynchronous fraud-check results or callbacks from the Fraud Detection Service, directly grounded in 'fraud-check callbacks.' |
-| payment-claim-status-events | Provides claim-related asynchronous status events associated with the named Partner Payments Gateway, derived from the external-partner integration requirement and the stated claim-status event layer. |
-| document-claim-status-events | Provides claim-related asynchronous status events associated with the named Document Vault, derived from the external-partner integration requirement and the stated claim-status event layer. |
+| --- | --- |
+| claim-status-updates | Carries asynchronous claim status updates explicitly required by the document's '6 Kafka topics for async claim status updates and fraud-check callbacks.' |
+| claim-status-partner-notifications | Supports asynchronous distribution of claim status information to external partners, consistent with the requirement to integrate Claims Adjudication with 3 external partners and provide async claim status updates. |
+| fraud-check-requests | Represents fraud checks initiated toward the named Fraud Detection Service, paired with the document's explicit fraud-check callback event flow. |
+| fraud-check-callbacks | Carries the 'fraud-check callbacks' explicitly identified as part of the six-topic event-driven layer. |
+| payment-status-updates | Plausibly carries asynchronous status events associated with the named Partner Payments Gateway as part of the Claims Adjudication system's integration with external partners. |
+| document-status-updates | Plausibly carries asynchronous status events associated with the named Document Vault as part of the Claims Adjudication system's integration with external partners. |
 
 ## 9. Security Design
 
@@ -677,7 +677,7 @@ classDiagram
 ## 10. Error Handling
 
 | Error Code | Meaning |
-|---|---|---|
+| --- | --- |
 | 400 | Bad Request |
 | 401 | Unauthorized |
 | 404 | Not Found |
@@ -692,7 +692,7 @@ classDiagram
 ## 11. Non-Functional Requirements
 
 | Area | Requirement |
-|---|---|---|
+| --- | --- |
 | Availability | 99.9% |
 | Response Time | < 2 sec for standard read/update flows |
 | TPS | 200/sec peak |
@@ -725,30 +725,30 @@ flowchart LR
 - Dashboard metrics for service health, resource usage, and business events
 
 ## 14. Assumptions
-- All 6 Kafka topics remain simple with stable event schemas.
-- No payload transformation or complex business mapping is required.
-- No dead-letter handling is required for Kafka consumers.
-- OAuth endpoints, credentials, scopes, and flows are defined by dependent systems.
+- All six Kafka topics remain simple with stable event schemas.
+- No message transformation or dead-letter handling is required.
+- OAuth infrastructure and client credentials are available.
+- External systems expose documented, testable integration contracts.
 
 ## 15. Risks & Dependencies
 
 | Risk | Mitigation |
-|---|---|---|
+| --- | --- |
 | Downstream latency | Retry pattern with bounded exponential backoff |
 | Kafka outage | DLQ and message replay strategy |
 | Schema drift | Versioned event contracts and consumer validation |
 
 ### Risk Notes
 - Unspecified Kafka delivery guarantees may affect consumer design and testing.
-- OAuth integration details may vary across the 3 external systems.
-- External-system availability or contract changes could delay integration testing.
-- Six Kafka topics increase schema and producer/consumer coordination points.
+- Three external systems create interface and environment coordination risk.
+- OAuth token flows and authorization policies may vary across integrations.
+- Kafka schema or contract changes could disrupt six topic integrations.
 
 ### Dependencies
-- Kafka platform and all 6 topic definitions must be provisioned and accessible.
-- All 3 external systems must provide stable integration contracts and test environments.
-- OAuth identity provider must provide application registration, credentials, and scopes.
-- Upstream producers and downstream consumers must align on event schemas and topic usage.
+- Kafka platform team for six topic definitions, ACLs, and environments.
+- Identity/OAuth provider team for client registration and access policies.
+- Owners of the three external systems for contracts and test environments.
+- CI/CD and runtime platform for Spring Boot service deployment.
 
 ---
 
